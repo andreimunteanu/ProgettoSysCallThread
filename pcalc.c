@@ -1,5 +1,6 @@
 #include "pcalc.h"
 
+
 float *get_results(operation *operations,int lines){
   int i;
   float *temp = (float*)malloc(lines*sizeof(float));
@@ -47,11 +48,7 @@ char *prompt_user(char *msg){
   i = 0;	
   return filename;
 }
-void *ciao(void *arg){
-  char *c=(char*)arg;
-  printf("\t %p %s \n",c,c);
-  pthread_exit(NULL);
-}
+
 void main(int argc, char *argv[]){
   int fd,n_threads,j,i = 0, lines = -1;  // da dichiarare i register
   int available_workers, remaining_work;
@@ -59,10 +56,11 @@ void main(int argc, char *argv[]){
   int *thread_ids;
   float *results;
   operation *operations;
-  thread_arg **thread_args;
+  thread_arg *thread_args;
   int id;
   char *conf_file;
   char *filename;
+  pthread_attr_t attr;
   
   if(argc > 2){
     exit(1);
@@ -88,98 +86,42 @@ void main(int argc, char *argv[]){
     available_workers = 2*n_threads;
     remaining_work = 2*n_threads +1;
     
-    threads = (pthread_t*)malloc(n_threads*sizeof(pthread_t));
+    threads = (pthread_t *)malloc(n_threads*sizeof(pthread_t));
     
-    thread_ids = (int *)malloc(lines * sizeof(int));    
+    thread_ids = (int *)malloc(lines*sizeof(int));    
 	
-    operations = (operation *) malloc(lines*sizeof(operation));
-    
-    //addresses = (op_addr)*malloc(n_thread*sizeof(op_addr));
-    
-    copy_operations(fd, thread_ids,  &operations,lines);
-    
-    thread_args = init_thread_args(n_threads,&lines);
-
-    printf("%d \n",lines);
-    for(i = 0; i<lines; ++i){
+    operations = (operation *)malloc(lines*sizeof(operation));
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
+    thread_args = init_thread_args(n_threads, &lines);
+    copy_operations(fd, thread_ids, &operations, lines);
+ 
+    /*
+      for(i = 0; i<lines; ++i){
       j = i*sizeof(operation);
       printf("%d %c %d\n",(operations +j)->num1, (operations+j)->op,(operations +j)->num2);
-    }
+      }*/
+
     thread_arg *temp;
-    char a ='a';
-    char* c="ciao";
-   
     for(i = 0;i < n_threads;++i){
-      temp = *(thread_args +i*sizeof(thread_arg*));
+      temp = thread_args +i*sizeof(thread_arg);
+      printf("PADRE THREAD ARGS: thread_args = %p\tmy_mutex = %p\tremaining_Work = %p\n******************************************************\n", temp, temp->my_mutex, temp->remaining_work);
       
-      printf("padre figlio %d %p %p \n",i,temp,temp->my_mutex);
-      }
+     
+    }
+    
     for(i = 0;i < n_threads;++i){
-      temp =*(thread_args +i*sizeof(thread_arg*));
-      
-        // printf("padre figlio %d %p %p \n",i,temp,temp->remaining_work);
-       if(pthread_create(&threads[i],NULL,start,(void*)(temp))){
+      if(pthread_create((threads+i*sizeof(pthread_t)),&attr,start,(void*)(thread_args +i*sizeof(thread_arg)))){
       	perror("nato morto\n");
-      	exit(1);//??
-	}
-    }
-
-    printf("Ho procreato\n");
-    // tocca a babbo
-    /* for(i= 0; i < lines; ++i){
-      id = (thread_ids[i]-1);
-      
-      if(id == -1){
-
+      	exit(1);
       }
-      
-      //  *(addresses + id*sizeof(op_addr)) = operations+i*sizeof(operation);
-      }*/
-    
-    //tipo  wait_results(remaining_work);
-    //    printf("i figli hanno finito, ora li coppo\n");
-    /*
-    results = get_results(operations, lines);
-    char *file_name = "res.txt";
-    if((fd = open(file_name, O_WRONLY|O_CREAT, 0666)) == -1){
-      perror("open res");
-      exit(1);
     }
-    for(i = 0; i < lines; ++i){
-      char string[64];
-      sprintf(string, "%f\n", *(results+i));
-      print_to_file(fd, string, strlen(string));
-    }
-
-    operations[0].op = 'K';
-    
-    for(i = 0; i < n_threads; ++i){
-    
-    }
-    
-    */
-    // void **thread_return;
-     for(i = 0; i < 1; ++i)
-       if(pthread_join(*(threads+i*sizeof(pthread_t)),NULL)){
-	perror("join");
-	exit(1);
-	}
-
+     
+    sleep(2);
     for(i = 0;i < n_threads;++i){
-      temp = *(thread_args +i*sizeof(thread_arg*));
-      
-      printf("padre figlio %d %p %p \n",i,temp,temp->my_mutex);
-      }
-    /*for(i = 0;i < n_threads;++i){
-       temp = thread_args +i*sizeof(thread_arg);
-      
-      printf("padre figlio %d %p %p \n",i,temp,temp->remaining_work);
-      }*/
-     for(i = 0; i < n_threads; ++i)
-       printf("%d\n", thread_ids[i]);
-
-    printf("Ciao papa, muore.\n");
-    // sleep(6);
-    exit(0);
+      temp = thread_args +i*sizeof(thread_arg);
+      printf("SECONDO PADRE THREAD ARGS: thread_args = %p\tmy_mutex = %p\tremaining_Work = %p\n******************************************************\n", temp, temp->my_mutex, temp->remaining_work); 
+    }
+    pthread_exit(NULL);
   }
 }
