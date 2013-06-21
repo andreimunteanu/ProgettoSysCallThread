@@ -5,7 +5,7 @@ float *get_results(operation *operations,int lines){
   int i;
   float *temp = (float*)malloc(lines*sizeof(float));
   for(i = 0; i < lines ; ++i){
-    *(temp+i) = (operations+i*sizeof(operation))->res;
+    *(temp+i) = (operations+i)->res;
   }
   return temp;
 }
@@ -52,15 +52,14 @@ char *prompt_user(char *msg){
 void main(int argc, char *argv[]){
   int fd,n_threads,j,i = 0, lines = -1;  // da dichiarare i register
   int available_workers, remaining_work;
-  pthread_t *threads;
+  int id;
   int *thread_ids;
   float *results;
   operation *operations;
+  pthread_t *threads;
   thread_arg *thread_args;
-  int id;
   char *conf_file;
   char *filename;
-  pthread_attr_t attr;
   
   if(argc > 2){
     exit(1);
@@ -83,45 +82,80 @@ void main(int argc, char *argv[]){
 
     lines = count_lines(fd);    
     n_threads = read_integer(fd);
-    available_workers = 2*n_threads;
-    remaining_work = 2*n_threads +1;
+    available_workers = n_threads;
+    remaining_work = lines;
     
     threads = (pthread_t *)malloc(n_threads*sizeof(pthread_t));
     
     thread_ids = (int *)malloc(lines*sizeof(int));    
 	
     operations = (operation *)malloc(lines*sizeof(operation));
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_JOINABLE);
-    thread_args = init_thread_args(n_threads, &lines);
+    thread_args = init_thread_args(n_threads, &remaining_work, operations, &available_workers);
     copy_operations(fd, thread_ids, &operations, lines);
  
     /*
       for(i = 0; i<lines; ++i){
-      j = i*sizeof(operation);
+      j = i;
       printf("%d %c %d\n",(operations +j)->num1, (operations+j)->op,(operations +j)->num2);
       }*/
-
-    thread_arg *temp;
-    for(i = 0;i < n_threads;++i){
-      temp = thread_args +i*sizeof(thread_arg);
-      printf("PADRE THREAD ARGS: thread_args = %p\tmy_mutex = %p\tremaining_Work = %p\n******************************************************\n", temp, temp->my_mutex, temp->remaining_work);
-      
-     
-    }
     
     for(i = 0;i < n_threads;++i){
-      if(pthread_create((threads+i*sizeof(pthread_t)),&attr,start,(void*)(thread_args +i*sizeof(thread_arg)))){
+      if(pthread_create((threads+i),NULL,start,(void*)(thread_args +i))){
       	perror("nato morto\n");
       	exit(1);
       }
     }
-     
-    sleep(2);
-    for(i = 0;i < n_threads;++i){
-      temp = thread_args +i*sizeof(thread_arg);
-      printf("SECONDO PADRE THREAD ARGS: thread_args = %p\tmy_mutex = %p\tremaining_Work = %p\n******************************************************\n", temp, temp->my_mutex, temp->remaining_work); 
+    
+    for(i = 0;i < lines;++i){
+      thread_arg *cursor;
+      id = thread_ids[i]-1;
+      if(id == -1){
+	pthread_mutex_lock(thread_args->global_mutex);
+	printf("available_workers = %d\n", available_workers);
+	if(available_workers == 0){
+	  printf("SLEEPPOOOOOOOOO\n");
+	  pthread_cond_wait(thread_args->father_hold,thread_args->global_mutex);}
+	pthread_mutex_unlock(thread_args->global_mutex);
+	  
+	j = 0;
+	while(*(thread_args + j)->offset >= 0){
+	  j = (j + 1) % n_threads;
+	}
+	id = j;
+      }
+      cursor = thread_args + id;
+      pthread_mutex_lock(cursor->my_mutex);
+      if(*cursor->offset >= 0){
+	printf("SLEEPPO NELLA PRIMA COND! %d\n",i);
+	pthread_cond_wait(cursor->synchronizer,cursor->my_mutex);
+      }
+      *cursor->offset = i;
+      pthread_mutex_unlock(cursor->my_mutex);
+      pthread_cond_signal(cursor->synchronizer);     
     }
-    pthread_exit(NULL);
+
+    pthread_mutex_lock(thread_args->global_mutex);
+    if(remaining_work){
+      printf("MI SLEEPPO NELLA COND remaining = %d\n", remaining_work);
+      pthread_cond_wait(thread_args->father_sync, thread_args->global_mutex);
+    }
+    pthread_mutex_unlock(thread_args->global_mutex);
+    operations->op = 'K';
+    
+     for(i = 0;i < n_threads;++i){
+       thread_arg *cursor;
+      cursor = thread_args + i;
+      pthread_mutex_lock(cursor->my_mutex);
+      *cursor->offset = 0;
+      pthread_mutex_unlock(cursor->my_mutex);
+      pthread_cond_signal(cursor->synchronizer);   
+    }
+
+    for(i = 0; i < 1; ++i)
+      if(pthread_join(*(threads+i),NULL)){
+	perror("join");
+	exit(1);
+      }
+    exit(0);
   }
 }

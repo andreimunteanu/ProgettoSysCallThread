@@ -77,7 +77,7 @@ void copy_operations(int fd, int *proc_id, operation **operations,int lines){
     proc_id[i++] = read_integer(fd);
     write_line(fd, cursor);		
     printf("\t%d %c %d\n",cursor->num1, cursor->op,cursor->num2);
-    cursor += sizeof(operation);
+    cursor++;
   }
 
 }
