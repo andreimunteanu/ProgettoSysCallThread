@@ -9,10 +9,11 @@ void *start(void *arg){
   pthread_cond_t *father_hold = my_arg->father_hold;
   operation *operations = my_arg->operations;
   operation *my_op;
+  int id = my_arg->thread_id;
   int *offset = my_arg->offset;
   int *remaining_work = my_arg->remaining_work;
   int *available_workers = my_arg->available_workers;
-  
+  char buf[64];
   //printf("\t hello i'm child\n");
  
   
@@ -25,18 +26,17 @@ void *start(void *arg){
     --(*available_workers);
     pthread_mutex_unlock(global_mutex);
     my_op = operations + *offset;
-    printf("\tmy_operation %d %c %d\n", my_op->num1,my_op->op, my_op->num2);    // printf("\t %c %d \n",(**address).op,(**address).num1);
+    sprintf(buf, "\t[THREAD %d] operation ==> %d %c %d\n",id, my_op->num1,my_op->op, my_op->num2);
+    print_to_video(buf);
 
-    //printf("\tfiglio: %d,op add %p \n",sem_num,*address);       
-    
-    //printf("op %c ", my_operation.op)
     switch(my_op->op) {
     case '+': my_op->res = my_op->num1 + my_op->num2; break;
     case '-': my_op->res = my_op->num1 - my_op->num2; break;
     case '*': my_op->res = my_op->num1 * my_op->num2; break;
     case '/': my_op->res = (float)my_op->num1 / (float)my_op->num2; break;
     case 'K': pthread_exit(NULL);
-    default : printf("No such operation!\n");
+    default : sprintf(buf,"No such operation!\n");
+      print_to_video(buf);
     }
     
     *offset = -1;
