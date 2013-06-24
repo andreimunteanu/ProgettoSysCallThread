@@ -1,54 +1,5 @@
 #include "pcalc.h"
 
-
-float *get_results(operation *operations,int lines){
-  int i;
-  float *temp = (float*)malloc(lines*sizeof(float));
-  for(i = 0; i < lines ; ++i){
-    *(temp+i) = (operations+i)->res;
-  }
-  return temp;
-}
-
-void print_to_file(int fd, char *string, int len){
-  int n;
-
-  if((n = write(fd, string, len)) == -1){
-    perror("write");
-    exit(1);
-  }
-}
-
-int count_lines(int fd){
-  int chars, n, lines;
-  char buf[1];
-  chars = 0;
-  lines = -1;
-  while((n = read(fd,buf, 1)) > 0){//controllo per la sintassi
-    chars++;
-    if(*buf == '\n')
-      lines++;
-  }	
-  
-  lseek(fd, -chars, SEEK_END);
-  return lines;
-}
-
-char *prompt_user(char *msg){
-  int i = 0;
-  char *filename = malloc(64*sizeof(char));
-  char buf[1];
-  //char *str = "Inserisci nome file di configurazione: ";
-  write(1, msg, strlen(msg));
-  fflush(stdout);
-  while((read(2, buf, 1) > 0) && *buf != '\n'){
-    filename[i++] = buf[0];
-  }
-  filename[i] = '\0';
-  i = 0;	
-  return filename;
-}
-
 void main(int argc, char *argv[]){
   int fd,n_threads,j,i = 0, lines = -1;  // da dichiarare i register
   int available_workers, remaining_work;
@@ -60,22 +11,21 @@ void main(int argc, char *argv[]){
   thread_arg *thread_args;
   char *conf_file;
   char *filename;
+  char buf[64];
   
   if(argc > 2){
     exit(1);
   }
   else{
-    if(argc == 1){
+    if(argc == 1)
       conf_file = prompt_user("insert file name: ");
-    }
+    
     
     else
       conf_file = argv[1];
     
-    if((fd = open(conf_file,O_RDONLY, S_IRUSR)) == -1){
-      perror("open conf");
-      exit(1);
-    }
+    if((fd = open(conf_file,O_RDONLY, S_IRUSR)) == -1)
+      syserr("open(conf_file) failed.\n");
     
     if(argc == 1)
       free(conf_file);
@@ -93,27 +43,20 @@ void main(int argc, char *argv[]){
     thread_args = init_thread_args(n_threads, &remaining_work, operations, &available_workers);
     copy_operations(fd, thread_ids, &operations, lines);
  
-    /*
-      for(i = 0; i<lines; ++i){
-      j = i;
-      printf("%d %c %d\n",(operations +j)->num1, (operations+j)->op,(operations +j)->num2);
-      }*/
-    
-    for(i = 0;i < n_threads;++i){
-      if(pthread_create((threads+i),NULL,start,(void*)(thread_args +i))){
-      	perror("nato morto\n");
-      	exit(1);
-      }
-    }
-    
+    for(i = 0;i < n_threads;++i)
+      if(pthread_create((threads+i),NULL,start,(void*)(thread_args +i)))
+      	syserr("pthread_create() failed.\n");
+     
     for(i = 0;i < lines;++i){
       thread_arg *cursor;
       id = thread_ids[i]-1;
       if(id == -1){
 	pthread_mutex_lock(thread_args->global_mutex);
-	printf("available_workers = %d\n", available_workers);
+	sprintf(buf,"[MAIN] available_workers = %d\n", available_workers);
+	print_to_video(buf);
 	if(available_workers == 0){
-	  printf("SLEEPPOOOOOOOOO\n");
+	  sprintf(buf,"[MAIN] No workers available, main thread sleeps.\n");
+	  print_to_video(buf);
 	  pthread_cond_wait(thread_args->father_hold,thread_args->global_mutex);}
 	pthread_mutex_unlock(thread_args->global_mutex);
 	  
@@ -126,7 +69,8 @@ void main(int argc, char *argv[]){
       cursor = thread_args + id;
       pthread_mutex_lock(cursor->my_mutex);
       if(*cursor->offset >= 0){
-	printf("SLEEPPO NELLA PRIMA COND! %d\n",i);
+	sprintf(buf, "[MAIN] waiting for thread\n");
+	print_to_video(buf);
 	pthread_cond_wait(cursor->synchronizer,cursor->my_mutex);
       }
       *cursor->offset = i;
@@ -136,7 +80,8 @@ void main(int argc, char *argv[]){
 
     pthread_mutex_lock(thread_args->global_mutex);
     if(remaining_work){
-      printf("MI SLEEPPO NELLA COND remaining = %d\n", remaining_work);
+      sprintf(buf,"[MAIN] waiting on %d threads still working\n", remaining_work);
+      print_to_video(buf);
       pthread_cond_wait(thread_args->father_sync, thread_args->global_mutex);
     }
     pthread_mutex_unlock(thread_args->global_mutex);
@@ -152,10 +97,9 @@ void main(int argc, char *argv[]){
     }
 
     for(i = 0; i < 1; ++i)
-      if(pthread_join(*(threads+i),NULL)){
-	perror("join");
-	exit(1);
-      }
+      if(pthread_join(*(threads+i),NULL))
+	syserr("pthread_join() failed.\n");
+	
     exit(0);
   }
 }
