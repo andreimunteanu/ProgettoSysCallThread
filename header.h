@@ -80,6 +80,15 @@ void print_to_file(const int fd, const char *string, const int len);
  *
  */
 void print_to_video(const char *str);
+
+/**
+ * @brief Initializes the arguments passed to the threads
+ * @param n_thread number of threads to be initialized
+ * @param lines pointer to the number of operations in the configuration file
+ * @param operations array of all the operations read in the configuration file
+ * @param available_workers pointer to the number of available workers
+ *
+ */
 thread_arg *init_thread_args(const int n_threads, int *lines, operation *operations, int *available_workers);
 
 /**
