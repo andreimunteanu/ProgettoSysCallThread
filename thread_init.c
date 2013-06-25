@@ -1,4 +1,12 @@
-#include"pcalc.h"
+/**
+ * @file   thread_init.c
+ * @author <a href="mailto:niccolo.marastoni@studenti.univr.it">Niccolò Marastoni</a>
+ * @author <a href="mailto:andrei.munteanu@studenti.univr.it">Andrei Munteanu</a>
+ * @date   July, 2013
+ * @brief  Thread initialization
+ * 
+ */
+#include"header.h"
 
 thread_arg *init_thread_args(int n_threads,int* lines, operation *operations, int *available_workers){
   int i;
