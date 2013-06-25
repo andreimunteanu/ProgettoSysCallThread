@@ -1,3 +1,11 @@
+/**
+ * @file   header.h
+ * @author <a href="mailto:niccolo.marastoni@studenti.univr.it">Niccolò Marastoni</a>
+ * @author <a href="mailto:andrei.munteanu@studenti.univr.it">Andrei Munteanu</a>
+ * @date   July, 2013
+ * @brief  Header file.
+ * 
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -27,13 +35,72 @@ typedef struct thread_arg{
   int *available_workers;
 }thread_arg;
 
-int read_integer(int fd);
-void copy_operations(int fd, int *proc_id, operation **operations,int lines);
+/**
+ * @brief Reads an integer from the configuration file. 
+ * @param fd the file descriptor of the configuration file.
+ * @return the integer read.
+ * 
+ */
+int read_integer(const int fd);
+
+/**
+ * @brief Stores all the operations from the configuration file. 
+ * @param fd file descriptor of the configuration file.
+ * @param operations pointer to the array of operations.
+ * @param line number of operations.
+ */
+void copy_operations(const int fd, int *thread_id, operation **operations, int lines);
+
+/**
+ * @brief thread's only function, where they execute all computations in the configuration file 
+ * @param fd the file descriptor of the configuration file.
+ * @return the integer read.
+ * 
+ */
 void *start(void *arg);
-void syserr(char *str);
-void print_to_file(int fd, char *string, int len);
-void print_to_video(char *str);
-thread_arg *init_thread_args(int n_threads, int *lines, operation *operations, int *available_workers);
-float *get_results(operation *operations,int lines);
-int count_lines(int fd);
-char *prompt_user(char *msg);
+
+/**
+ * @brief Prints a string on the stderr and exits with "exit code" 1.
+ * @param str the string to print.
+ */
+void syserr(const char *str);
+
+/**
+ * @brief Writes in specific file the string.
+ * @param fd file descriptor of the file.
+ * @param string the string to write.
+ * @param len length of the string.
+ *
+ */
+void print_to_file(const int fd, const char *string, const int len);
+
+/**
+ * @brief Prints a string on the stdout.
+ * @param str the string to print
+ *
+ */
+void print_to_video(const char *str);
+thread_arg *init_thread_args(const int n_threads, int *lines, operation *operations, int *available_workers);
+
+/**
+ * @brief Creates an array of the results of the operations.
+ * @param operations pointer to the array of operations
+ * @param lines number of operations.
+ * @return pointer to the array of results.
+ *
+ */
+float *get_results(operation *operations,const int lines);
+
+/**
+ * @brief Counts the number of operations in the configuration file.
+ * @param fd file descriptor of the configuration file.
+ * @return the number of operations.
+ */
+int count_lines(const int fd);
+
+/**
+ * @brief Reads the name of the configuration file from the stdin.
+ * @param msg message printed on the sdout before reading.
+ * @return strings which contains the name of the configuration file.
+ */
+char *prompt_user(const char *msg);
