@@ -1,4 +1,4 @@
-#include "pcalc.h"
+#include "header.h"
 
 void *start(void *arg){
   thread_arg *my_arg = (thread_arg*)arg;
