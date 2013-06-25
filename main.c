@@ -169,6 +169,17 @@ void main(int argc, char *argv[]){
       sprintf(string, "%f\n", *(results+i));
       print_to_file(fd, string, strlen(string));
     }
+
+    free(threads);
+    free(thread_ids);
+    free(operations);
+    free(thread_args->offset);
+    free(thread_args->father_hold);
+    free(thread_args->father_sync);
+    free(thread_args->synchronizer);
+    free(thread_args->global_mutex);
+    free(thread_args->my_mutex);
+    free(thread_args);
     
     exit(0);
   }
