@@ -53,8 +53,7 @@ void copy_operations(const int fd, int *thread_id, operation **operations, int l
 
 /**
  * @brief thread's only function, where they execute all computations in the configuration file 
- * @param fd the file descriptor of the configuration file.
- * @return the integer read.
+ * @param arg arguments passed to the threads
  * 
  */
 void *start(void *arg);
