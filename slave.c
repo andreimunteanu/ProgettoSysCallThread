@@ -1,3 +1,11 @@
+/**
+ * @file   slave.c
+ * @author <a href="mailto:niccolo.marastoni@studenti.univr.it">Niccolò Marastoni</a>
+ * @author <a href="mailto:andrei.munteanu@studenti.univr.it">Andrei Munteanu</a>
+ * @date   July, 2013
+ * @brief  contains the main function for the threads
+ * 
+ */
 #include "header.h"
 
 void *start(void *arg){
@@ -14,8 +22,6 @@ void *start(void *arg){
   int *remaining_work = my_arg->remaining_work;
   int *available_workers = my_arg->available_workers;
   char buf[64];
-  //printf("\t hello i'm child\n");
- 
   
   while(1){
     pthread_mutex_lock(my_mutex);
@@ -48,6 +54,5 @@ void *start(void *arg){
       pthread_cond_signal(father_sync);
     pthread_mutex_unlock(global_mutex);
     pthread_mutex_unlock(my_mutex);
-  }
-  
+  }  
 }
