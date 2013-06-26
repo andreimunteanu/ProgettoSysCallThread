@@ -11,7 +11,7 @@ LDFLAGS:=-lpthread
 all: p_calc.x
 
 clean:
-  @echo Cleaning.
+	@echo Cleaning.
 	@rm -f *.o
 	@rm -f p_calc.x
 
