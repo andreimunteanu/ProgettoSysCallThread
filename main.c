@@ -58,16 +58,15 @@ creare, NTHREAD.
 
 void main(int argc, char *argv[]){
   register int j, i = 0;
-  int fd,n_threads, lines = -1;  // da dichiarare i register
+  int fd,n_threads, lines = -1;
   int available_workers, remaining_work;
   int id;
-  int *thread_ids;
-  float *results;
-  operation *operations;
+  int *thread_ids; //Array of the ids of the workers.
+  float *results; //Array of results.
+  operation *operations; //Array of operations.
   pthread_t *threads;
-  thread_arg *thread_args;
-  char *conf_file;
-  char *filename;
+  thread_arg *thread_args; //Array of arguments passed to the child threads.
+  char *conf_file; //String that contains the configuration file name.
   char buf[64];
   
   if(argc > 2){
@@ -87,9 +86,9 @@ void main(int argc, char *argv[]){
     if(argc == 1)
       free(conf_file);
 
-    lines = count_lines(fd);    
-    n_threads = read_integer(fd);
-    available_workers = n_threads;
+    lines = count_lines(fd);   //Initializes the number of operations.
+    n_threads = read_integer(fd); //Initializes the number of child threads.
+    available_workers = n_threads; 
     remaining_work = lines;
     
     threads = (pthread_t *)malloc(n_threads*sizeof(pthread_t));
@@ -97,68 +96,75 @@ void main(int argc, char *argv[]){
     thread_ids = (int *)malloc(lines*sizeof(int));    
 	
     operations = (operation *)malloc(lines*sizeof(operation));
-    thread_args = init_thread_args(n_threads, &remaining_work, operations, &available_workers);
+    //Stores the read information.
     copy_operations(fd, thread_ids, &operations, lines);
- 
+    //Initializes the argumenst of the child threads.
+    thread_args = init_thread_args(n_threads, &remaining_work, operations, &available_workers);
+
     for(i = 0;i < n_threads;++i)
       if(pthread_create((threads+i),NULL,start,(void*)(thread_args +i)))
       	syserr("pthread_create() failed.\n");
-     
+
+    //Assigns the operations.
     for(i = 0;i < lines;++i){
       thread_arg *cursor;
       id = thread_ids[i]-1;
-      if(id == -1){
+      if(id == -1){//Finds the first free child process.
 	pthread_mutex_lock(thread_args->global_mutex);
 	sprintf(buf,"[MAIN] available_workers = %d\n", available_workers);
 	print_to_video(buf);
 	if(available_workers == 0){
 	  sprintf(buf,"[MAIN] No workers available, main thread sleeps.\n");
 	  print_to_video(buf);
+
+	  //Waits for an available child thread.
 	  pthread_cond_wait(thread_args->father_hold,thread_args->global_mutex);}
 	pthread_mutex_unlock(thread_args->global_mutex);
 	  
 	j = 0;
-	while(*(thread_args + j)->offset >= 0){
+	while(*(thread_args + j)->offset >= 0){//Looks for a free child thread.
 	  j = (j + 1) % n_threads;
 	}
 	id = j;
       }
       cursor = thread_args + id;
-      pthread_mutex_lock(cursor->my_mutex);
-      if(*cursor->offset >= 0){
+      pthread_mutex_lock(cursor->my_mutex);//If busy waits.
+      if(*cursor->offset >= 0){//Busy.
 	sprintf(buf, "[MAIN] waiting for thread\n");
 	print_to_video(buf);
+	//Waits for the threads.
 	pthread_cond_wait(cursor->synchronizer,cursor->my_mutex);
       }
-      *cursor->offset = i;
+      *cursor->offset = i;//Assigns the right offset for the child.
       pthread_mutex_unlock(cursor->my_mutex);
-      pthread_cond_signal(cursor->synchronizer);     
+      pthread_cond_signal(cursor->synchronizer); //Wakes up the child.   
     }
 
     pthread_mutex_lock(thread_args->global_mutex);
     if(remaining_work){
       sprintf(buf,"[MAIN] waiting on %d threads still working\n", remaining_work);
-      print_to_video(buf);
+      print_to_video(buf); //Waits until all the operations are done.
       pthread_cond_wait(thread_args->father_sync, thread_args->global_mutex);
     }
     pthread_mutex_unlock(thread_args->global_mutex);
-    operations->op = 'K';
+    operations->op = 'K';//Assigns the operation Kill.
     
-    for(i = 0;i < n_threads;++i){
+    for(i = 0;i < n_threads;++i){//Kill every child process.
       thread_arg *cursor;
       cursor = thread_args + i;
       pthread_mutex_lock(cursor->my_mutex);
-      *cursor->offset = 0;
+      *cursor->offset = 0;//Assigns the operation.
       pthread_mutex_unlock(cursor->my_mutex);
-      pthread_cond_signal(cursor->synchronizer);   
+      pthread_cond_signal(cursor->synchronizer);//Wakes up the child process.   
     }
 
     for(i = 0; i < 1; ++i)
       if(pthread_join(*(threads+i),NULL))
 	syserr("pthread_join() failed.\n");
-	
+    //Stores the results in the array.	
     results = get_results(operations, lines);
-    char *file_name = "res.txt";
+    close(fd);
+    char *file_name = "res.txt";//String that contains the results file name.
     if((fd = open(file_name, O_WRONLY|O_CREAT, 0666)) == -1){
       perror("open res");
       exit(1);
@@ -167,9 +173,11 @@ void main(int argc, char *argv[]){
     for(i = 0; i < lines; ++i){
       char string[64];
       sprintf(string, "%f\n", *(results+i));
-      print_to_file(fd, string, strlen(string));
+      print_to_file(fd, string, strlen(string));    //Stores the results in the file.	
     }
 
+    close(fd);
+    
     free(threads);
     free(thread_ids);
     free(operations);
