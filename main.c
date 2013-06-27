@@ -96,6 +96,8 @@ void main(int argc, char *argv[]){
     thread_ids = (int *)malloc(lines*sizeof(int));    
 	
     operations = (operation *)malloc(lines*sizeof(operation));
+    
+    results = (float*)malloc(lines*sizeof(float));
     //Stores the read information.
     copy_operations(fd, thread_ids, &operations, lines);
     //Initializes the argumenst of the child threads.
@@ -122,19 +124,23 @@ void main(int argc, char *argv[]){
 	pthread_mutex_unlock(thread_args->global_mutex);
 	  
 	j = 0;
-	while(*(thread_args + j)->offset >= 0){//Looks for a free child thread.
+	while(*(thread_args + j)->status > 0){//Looks for a free child thread.
 	  j = (j + 1) % n_threads;
 	}
 	id = j;
       }
       cursor = thread_args + id;
       pthread_mutex_lock(cursor->my_mutex);//If busy waits.
-      if(*cursor->offset >= 0){//Busy.
+      if(*cursor->status > 0){//Busy.
 	sprintf(buf, "[MAIN] waiting for thread\n");
 	print_to_video(buf);
 	//Waits for the threads.
 	pthread_cond_wait(cursor->synchronizer,cursor->my_mutex);
       }
+      if(*cursor->status != -2)//If worked, store the previous result.
+	*(results + *cursor->offset) = (operations + *cursor->offset)->res;
+
+      *cursor->status = 1;//Set child busy;
       *cursor->offset = i;//Assigns the right offset for the child.
       pthread_mutex_unlock(cursor->my_mutex);
       pthread_cond_signal(cursor->synchronizer); //Wakes up the child.   
@@ -147,6 +153,15 @@ void main(int argc, char *argv[]){
       pthread_cond_wait(thread_args->father_sync, thread_args->global_mutex);
     }
     pthread_mutex_unlock(thread_args->global_mutex);
+
+    //Stores the results in the array.	
+    for(i = 0; i < n_threads; ++i) {
+      thread_arg *cursor;
+      cursor = thread_args + i;
+      if(*cursor->status != -2)
+	*(results + *cursor->offset) = (operations + *cursor->offset)->res;
+    }
+
     operations->op = 'K';//Assigns the operation Kill.
     
     for(i = 0;i < n_threads;++i){//Kill every child process.
@@ -161,11 +176,10 @@ void main(int argc, char *argv[]){
     for(i = 0; i < 1; ++i)
       if(pthread_join(*(threads+i),NULL))
 	syserr("pthread_join() failed.\n");
-    //Stores the results in the array.	
-    results = get_results(operations, lines);
+
     close(fd);
     char *file_name = "res.txt";//String that contains the results file name.
-    if((fd = open(file_name, O_WRONLY|O_CREAT, 0666)) == -1){
+    if((fd = open(file_name, O_WRONLY|O_CREAT|O_TRUNC, 0666)) == -1){
       perror("open res");
       exit(1);
     }
@@ -181,6 +195,7 @@ void main(int argc, char *argv[]){
     free(threads);
     free(thread_ids);
     free(operations);
+    free(thread_args->status);
     free(thread_args->offset);
     free(thread_args->father_hold);
     free(thread_args->father_sync);
