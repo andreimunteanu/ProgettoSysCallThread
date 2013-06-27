@@ -30,6 +30,7 @@ typedef struct thread_arg{
   pthread_cond_t *father_hold;
   operation *operations;
   int thread_id;
+  int *status;
   int *offset;
   int *remaining_work;
   int *available_workers;
@@ -89,15 +90,6 @@ void print_to_video(const char *str);
  *
  */
 thread_arg *init_thread_args(const int n_threads, int *lines, operation *operations, int *available_workers);
-
-/**
- * @brief Creates an array of the results of the operations.
- * @param operations pointer to the array of operations
- * @param lines number of operations.
- * @return pointer to the array of results.
- *
- */
-float *get_results(operation *operations,const int lines);
 
 /**
  * @brief Counts the number of operations in the configuration file.
