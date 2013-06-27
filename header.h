@@ -6,6 +6,9 @@
  * @brief  Header file.
  * 
  */
+#ifndef HEADER_H
+#define HEADER_H
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -104,3 +107,4 @@ int count_lines(const int fd);
  * @return strings which contains the name of the configuration file.
  */
 char *prompt_user(const char *msg);
+#endif
