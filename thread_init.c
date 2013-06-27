@@ -18,6 +18,7 @@ thread_arg *init_thread_args(int n_threads,int* lines, operation *operations, in
   pthread_cond_t *father_sync = (pthread_cond_t*)malloc(sizeof(pthread_cond_t));
   pthread_cond_t *father_hold = (pthread_cond_t*)malloc(sizeof(pthread_cond_t));
   int *offsets = (int *)malloc(n_threads*sizeof(int));
+  int *status = (int*)malloc(n_threads*sizeof(int));
     
    for(i = 0; i < n_threads; ++i){
      if(pthread_mutex_init(child_mutex +i,NULL) ||
@@ -46,9 +47,10 @@ thread_arg *init_thread_args(int n_threads,int* lines, operation *operations, in
     temp->father_hold = father_hold;
     temp->operations = operations;
     temp->thread_id = i + 1;
+    temp->status = status +i;
+    *temp->status = -2;// Never worked.
     temp->offset = offsets +i;
     temp->remaining_work = lines;
-    *temp->offset = -1;
     temp->available_workers = available_workers;
   }
   
