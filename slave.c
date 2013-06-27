@@ -18,6 +18,7 @@ void *start(void *arg){
   operation *operations = my_arg->operations;
   operation *my_op;
   int id = my_arg->thread_id;
+  int *status = my_arg->status;
   int *offset = my_arg->offset;
   int *remaining_work = my_arg->remaining_work;
   int *available_workers = my_arg->available_workers;
@@ -25,13 +26,13 @@ void *start(void *arg){
   
   while(1){
     pthread_mutex_lock(my_mutex);
-    if(*offset == -1)
+    if(*status < 0) //Operation not assigned.
       pthread_cond_wait(synchronizer, my_mutex);
     
     pthread_mutex_lock(global_mutex);
     --(*available_workers);
     pthread_mutex_unlock(global_mutex);
-    my_op = operations + *offset;
+    my_op = operations + *offset; //Takes the operation.
     sprintf(buf, "\t[THREAD %d] operation ==> %d %c %d\n",id, my_op->num1,my_op->op, my_op->num2);
     print_to_video(buf);
 
@@ -45,13 +46,13 @@ void *start(void *arg){
       print_to_video(buf);
     }
     
-    *offset = -1;
-    pthread_cond_signal(synchronizer);
+    *status = -1;//Child available.
+    pthread_cond_signal(synchronizer);//Wakes up the father.
     pthread_mutex_lock(global_mutex);
-    if((*available_workers)++ == 0)
+    if((*available_workers)++ == 0)//Wakes up the father if a worker is available.
       pthread_cond_signal(father_hold);
     if(--(*remaining_work) == 0)
-      pthread_cond_signal(father_sync);
+      pthread_cond_signal(father_sync);//Wakes up the father if all operations are done.
     pthread_mutex_unlock(global_mutex);
     pthread_mutex_unlock(my_mutex);
   }  
